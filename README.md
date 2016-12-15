@@ -38,6 +38,6 @@ http_parser怎么用:https://github.com/bodokaiser/libuv-webserver
 关于libevent的话,下载源码后,看里面sample.</br>
 还有就是看文档.</br>
 还有看下面这个链接,入门飞快.</br>
-http://www.tuicool.com/articles/uYVzua(libevent使用例子从简单到复杂)
+libevent使用例子从简单到复杂:http://www.tuicool.com/articles/uYVzua
 
 等了解多一点lighttpd和http后,在完善这个项目.
