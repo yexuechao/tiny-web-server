@@ -10,4 +10,4 @@ lighttpd:把状态机作为整个项目的框架.
 最终尚未解决问题:
 1.状态机没有完善.
 2.http_response没有完善.
-3.libevent:Master主进程监听僵死进程,想要同时派生新的进程.但是event_base会被fork到子进程,由于不能够free掉,有点麻烦.
+3.libevent:Master主进程监听僵死进程,想要同时派生新的进程.但是event_base会被fork到子进程,由于不能够free掉,有点麻烦..
