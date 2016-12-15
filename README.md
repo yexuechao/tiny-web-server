@@ -11,3 +11,8 @@ lighttpd:把状态机作为整个项目的框架.
 1.状态机没有完善.
 2.http_response没有完善.
 3.libevent:Master主进程监听僵死进程,想要同时派生新的进程.但是event_base会被fork到子进程,由于不能够free掉,有点麻烦.
+
+进入项目部分:
+这个项目模仿lighttpd,Master进程和Worker进程分离.进程池+epoll模式.
+main.cpp
+
