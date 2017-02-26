@@ -6,7 +6,8 @@
 #include <iostream>
 #include "HttpParser.h"
 
-HttpParser::HttpParser() {
+HttpParser::HttpParser():hht(NULL) {
+    //绑定回调函数
     settings.on_url = http_url_cb;
     settings.on_body = http_body_cb;
     settings.on_header_field = http_header_field_cb;
@@ -14,15 +15,18 @@ HttpParser::HttpParser() {
     settings.on_headers_complete = http_headers_complete_cb;
     settings.on_message_begin = http_message_begin_cb;
     settings.on_message_complete = http_message_complete_cb;
+
 }
 
-bool HttpParser::httpRun(http_request_t *http_request,std::string buf,int nread) {
+bool HttpParser::httpRun(std::string buf,int nread) {
 //    std::cout<<"111"<<std::endl;
-    http_parser_init(&http_request->parser, HTTP_REQUEST);
-    size_t nparsed = http_parser_execute(&http_request->parser, &settings,buf.c_str(), nread);
+    hht=new http_request_t;
+    parser.data=hht;
+    http_parser_init(&parser, HTTP_REQUEST);
+    size_t nparsed = http_parser_execute(&parser, &settings,buf.c_str(), nread);
     //an error should be caught
 
-    if(http_request->parser.upgrade){
+    if(parser.upgrade){
         //websocket
         //handle new protocol
     }else if(nparsed!=nread){
@@ -40,6 +44,7 @@ int HttpParser::http_message_begin_cb(http_parser* parser) {
 //    std::cout<<"222"<<std::endl;
     http_request_t* http_request = (http_request_t *) parser->data;
     http_request->header_lines = 0;
+//    http_request->headers.reserve(20);
     return 0;
 }
 
@@ -51,10 +56,14 @@ int HttpParser::http_url_cb(http_parser* parser, const char* chunk, size_t len) 
 //    std::cout<<chunk<<std::endl;
 
     http_request_t* http_request = (http_request_t *) parser->data;
-    http_request->url = new char[len+1];
+//        std::cout<<"url: "<<http_request->url<<endl;
+//    std::cout<<"method: "<<http_request->method<<endl;
+//    std::cout<<"header_lines="<<http_request->header_lines<<endl;
 
-    strncpy(http_request->url, chunk, len);
-    http_request->url[len]='\0';
+//    http_request->url = new char[len+1];
+    http_request->url.assign(chunk,len);
+//    strncpy(http_request->url, chunk, len);
+//    http_request->url[len]='\0';
     //version
 //    std::cout<<len<<std::endl;
 //    std::cout<<chunk+len+1<<std::endl;
@@ -77,12 +86,12 @@ int HttpParser::http_header_field_cb(http_parser* parser, const char* chunk, siz
 //    std::cout<<"444"<<std::endl;
 //    std::cout<<chunk<<std::endl;
     http_request_t* http_request = (http_request_t *) parser->data;
-    http_header_t* header = &http_request->headers[http_request->header_lines];
-    header->field = new char[len+1];
-    header->field_length = len;
-//    std::cout<<header->field_length<<std::endl;
-    strncpy(header->field, chunk, len);
-    header->field[len]='\0';
+    http_request->temp_field.assign(chunk,len);
+//    http_header_t *header = &http_request->headers[http_request->header_lines];
+//    header->field_length = len;
+//    header->field.assign(chunk,len);
+//    strncpy(header->field, chunk, len);
+//    header->field[len]='\0';
 //    std::cout<<header->field<<std::endl;
     return 0;
 }
@@ -94,14 +103,15 @@ int HttpParser::http_header_value_cb(http_parser* parser, const char* chunk, siz
 //    std::cout<<"555"<<std::endl;
 //    std::cout<<chunk<<std::endl;
     http_request_t* http_request = (http_request_t *) parser->data;
+    http_request->headers[http_request->temp_field].assign(chunk,len);
+//    http_header_t *header = &http_request->headers[http_request->header_lines];
 
-    http_header_t* header = &http_request->headers[http_request->header_lines];
-
-    header->value_length = len;
-    header->value = new char[len+1];
+//    header->value_length = len;
+//    header->value = new char[len+1];
 //    std::cout<<header->value_length<<std::endl;
-    strncpy(header->value, chunk, len);
-    header->value[len]='\0';
+//    strncpy(header->value, chunk, len);
+//    header->value.assign(chunk,len);
+//    header->value[len]='\0';
 //    std::cout<<header->value<<std::endl;
     ++http_request->header_lines;
     return 0;
@@ -116,10 +126,11 @@ int HttpParser::http_headers_complete_cb(http_parser* parser) {
 
     const char* method = http_method_str((http_method) parser->method);
 
-    http_request->method = new char[strlen(method)+1];
+//    http_request->method = new char[strlen(method)+1];
 
-    strncpy(http_request->method, method, strlen(method));
-    http_request->method[strlen(method)]='\0';
+//    strncpy(http_request->method, method, strlen(method));
+    http_request->method.assign(method);
+//    http_request->method[strlen(method)]='\0';
 //    std::cout<<strlen(method)<<std::endl;
 //    std::cout<<http_request->method<<std::endl;
 //    std::cout<<http_request->header_lines<<std::endl;
@@ -133,9 +144,10 @@ int HttpParser::http_body_cb(http_parser* parser, const char* chunk, size_t len)
 //    std::cout<<"777"<<std::endl;
     http_request_t* http_request = (http_request_t *) parser->data;
 
-    http_request->body = new char[len+1];
-    strncpy((char *) http_request->body, chunk, len);
-    ((char *)http_request->body)[len]='\0';
+//    http_request->body = new char[len+1];
+//    strncpy((char *) http_request->body, chunk, len);
+//    ((char *)http_request->body)[len]='\0';
+    http_request->body.assign(chunk,len);
 //    http_request->body = chunk;
 //    std::cout<<chunk<<std::endl;
     return 0;
@@ -151,21 +163,24 @@ int HttpParser::http_message_complete_cb(http_parser* parser) {
     http_request_t* http_request = (http_request_t *) parser->data;
 
     /* now print the ordered http http_request to console */
-//    printf("url: %s\n", http_request->url);
-//    printf("method: %s\n", http_request->method);
-//    for (int i = 0; i < http_request->header_lines; i++) {
-//        http_header_t* header = &http_request->headers[i];
-//        if (header->field)
-//            printf("Header: %s: %s\n", header->field, header->value);
-//    }
-//
-//    printf("body: \n%s\n", http_request->body);
+//    std::cout<<"url: "<<http_request->url<<endl;
+//    std::cout<<"method: "<<http_request->method<<endl;
+//    std::cout<<"header_lines="<<http_request->header_lines<<endl;
+//    std::cout<<http_request->headers[http_request->temp_field]<<endl;
+//    std::cout<<"body: "<<http_request->body<<endl;
 //    printf("\r\n");
 
     /* lets send our short http hello world response and close the socket */
     return 0;
 }
 
+void HttpParser::erasehht() {
+    delete hht;
+//    hht= nullptr;
+}
 HttpParser::~HttpParser() {
+}
 
+http_request_t *HttpParser::getHht() const {
+    return hht;
 }

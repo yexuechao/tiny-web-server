@@ -7,19 +7,23 @@
 
 #include <cstring>
 #include <map>
+#include <vector>
 #include "http_parser.h"
+using namespace std;
 /**
  * Represents a single http header.
  */
-struct http_header_t{
-    char* field;
-    char* value;
-    size_t field_length;
-    size_t value_length;
-    http_header_t():field(NULL),value(NULL){}
-} ;
+//struct http_header_t{
+//    string field;
+//    string value;
+//    size_t field_length;
+//    size_t value_length;
+//    ~http_header_t(){
+//        cout<<"header free"<<endl;
+//    }
+//} ;
 
-#define MAX_HTTP_HEADERS 20
+const int MAX_HTTP_HEADERS=20;
 /**
  * Represents a http request with internal dependencies.
  *
@@ -33,22 +37,26 @@ struct http_header_t{
  * - body content
  */
 struct http_request_t{
-    http_parser parser;
-    char *url;
-    char *method;
+    string url;
+    string method;
     int header_lines;
-    http_header_t headers[MAX_HTTP_HEADERS];
-    const char* body;
-    std::string version;
-    std::string query_string;
-    http_request_t():url(NULL),method(NULL),body(NULL){}
+    map<string,string> headers;
+    string temp_field;
+    string body;
+    string version;
+    string query_string;
+    http_request_t(){
+//        cout<<"construct"<<endl;
+    }
+    ~http_request_t(){
+//        cout<<"free"<<endl;
+    }
 };
 
 class HttpParser {
-    //绑定函数
 public:
     HttpParser();
-    bool httpRun(http_request_t* http_request,std::string buf,int nread);
+    bool httpRun(std::string buf,int nread);
 
 /**
  * Executed at begin of message.
@@ -85,11 +93,16 @@ public:
  * User can read all request options from "&parser->data.request".
  */
     static int http_message_complete_cb(http_parser* parser);
-
+    void erasehht();
     ~HttpParser();
 private:
-    http_parser_settings settings;
+public:
+    http_request_t *getHht() const;
 
+private:
+    http_parser_settings settings;
+    http_parser parser;
+    http_request_t *hht;
 };
 
 

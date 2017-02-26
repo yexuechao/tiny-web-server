@@ -20,7 +20,7 @@ struct http_response{
 
 class HttpResponse {
 public:
-    HttpResponse(http_request_t *http_request,http_response &response);
+    HttpResponse();
     void unimplemented();
     ~HttpResponse();
     void postResponse();
@@ -50,17 +50,21 @@ public:
     //Content-Length:
     //Connection:
     //Content-Type:
-
+    void setHhp(const HttpParser &hhp);
     //内容
 private:
     int cgi;
-    http_request_t *http_request;
-    http_response &response;
-    static std::map<std::string,std::string> filetype;
+    HttpParser hhp;
+    http_response response;
+public:
+    const http_response &getResponse() const;
 
+private:
+    static std::map<std::string,std::string> filetype;
     void Close(int fd);
     void Dup2(int fd1,int fd2);
     int response_error;
+    http_request_t *hhp_context;
 };
 
 

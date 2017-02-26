@@ -5,16 +5,16 @@
 #include <iostream>
 #include "Connection.h"
 #include "ConnectionState.h"
-#include "HttpParser.h"
 #include <event2/buffer.h>
+#include <zconf.h>
+
 Connection::Connection(evutil_socket_t fd,bufferevent *bev)
         :connfd(fd),
          bev(bev),
          state(CON_STATE_REQUEST_START),
          deal_times(0),
          is_readable(0),
-         request_count(0),
-         msg()
+         request_count(0)
 {}
 
 void Connection::setState(int state) {
@@ -30,8 +30,7 @@ void Connection::setBev(bufferevent *bev) {
 }
 
 bool Connection::parseHttp(std::string buf,int nread) {
-    HttpParser hp;
-    bool nparsed=hp.httpRun(http_request,buf,nread);
+    bool nparsed=hp_current.httpRun(buf,nread);
     if(!nparsed){
         //handle error ,close the connection
         //exit loop
@@ -44,42 +43,37 @@ bool Connection::parseHttp(std::string buf,int nread) {
 
 bool Connection::responsePrepare() {
     //get or post
-    HttpResponse hr(http_request,response);
-    if (strcasecmp(http_request->method, "GET") && strcasecmp(http_request->method, "POST"))
+    hr_current.setHhp(hp_current);
+
+    if (hp_current.getHht()->method!="GET" && hp_current.getHht()->method!="POST")
     {
+        //strcasecmp(http_request->method, "GET") && strcasecmp(http_request->method, "POST")
         //501
         std::cout<<"501 false"<<std::endl;
-        hr.unimplemented();//don't have this method
+        hr_current.unimplemented();//don't have this method
     }
-    if(strcasecmp(http_request->method, "POST") == 0){
+    if(hp_current.getHht()->method=="POST"){
         //post cgi
+        //strcasecmp(http_request->method, "POST") == 0
         std::cout<<"post method"<<std::endl;
-        hr.setCgi(1);
-        hr.postResponse();
+        hr_current.setCgi(1);
+        hr_current.postResponse();
     }
-    if (strcasecmp(http_request->method, "GET") == 0) {
-        std::cout<<"get method"<<std::endl;
-        hr.getMethodResponse();
+    if (hp_current.getHht()->method=="GET") {
+        //strcasecmp(http_request->method, "GET") == 0
+//        std::cout<<"get method"<<std::endl;
+        hr_current.getMethodResponse();
     }
 
-    if(hr.getResponse_error()!=0){
+    if(hr_current.getResponse_error()!=0){
         return false;
     }
     return true;
-//    std::cout<<"response is :"<<std::endl<<std::endl;
-//    std::cout<<"url is: "<<http_request->url<<std::endl;
-//    std::cout<<"status is :"<<response.status<<std::endl;
-//    std::cout<<"description is :"<<response.status_description<<std::endl;
-//    std::cout<<"version is :"<<response.version<<std::endl;
-//    std::map<std::string,std::string>::iterator itr=response.header.begin();
-//    for(;itr!=response.header.end();itr++){
-//        std::cout<<itr->first<<": "<<itr->second<<std::endl;
-//    }
-//    std::cout<<"content is :"<<std::endl<<response.content<<std::endl;
 }
 
 void Connection::writeResponse() {
     //组织response
+    http_response response=hr_current.getResponse();
     std::string wr;
     //version
     wr.append(response.version+" ");
@@ -104,37 +98,32 @@ void Connection::writeResponse() {
 //    evutil_socket_t fd=bufferevent_getfd(bev);
 //    write(fd,wr.c_str(),wr.length());
     bufferevent_write(bev,wr.c_str(),wr.length());
+    hp_current.erasehht();
 //    evbuffer * input=bufferevent_get_input(bev);
 //    evbuffer * output=bufferevent_get_output(bev);
 //    std::cout<<evbuffer_get_length(input)<<std::endl;
 //    std::cout<<evbuffer_get_length(output)<<std::endl;
     //重置http_request response
-
-    response=before_response;
-    msg="";
 //    eraseHttpRequest();
 }
 
-void Connection::connectionStateMachine() {}
 
 bool Connection::isKeepAlive() {
     //http
 //    std::cout<<"is keep alive ?"<<std::endl;
+    http_request_t *hht=hp_current.getHht();
     int i=0;
-    for(i=0;i<http_request->header_lines;i++){
-        if(strcasecmp(http_request->headers[i].field,"Connection")==0
-           && strcasecmp(http_request->headers[i].value,"keep-alive")==0){
-            break;
-        }
+    for(i=0;i<hht->header_lines;i++){
+//        if(hht->headers[i].field=="Connection" && hht->headers[i].value=="keep-alive"){
+//            break;
+//        }
     }
 
-    if(i==http_request->header_lines){
-        eraseHttpRequest();
+    if(i==hht->header_lines){
 //        std::cout<<"no keep alive"<<std::endl;
         return false;
     }else{
-        eraseHttpRequest();
-        std::cout<<"keep-alive"<<std::endl;
+//        std::cout<<"keep-alive"<<std::endl;
         return true;
     }
 }
@@ -154,46 +143,7 @@ void Connection::closeConn() {
     return ;
 }
 
-void Connection::requestStart() {
-//    std::cout<<"request start"<<std::endl;
-    http_request=new http_request_t;
-    http_request->parser.data=http_request;
-}
-
-void Connection::eraseHttpRequest() {
-//    std::cout<<"erase http_request"<<std::endl;
-    if(http_request->method!=NULL){
-        delete[] http_request->method;
-        http_request->method=NULL;
-    }
-
-    if(http_request->url!=NULL){
-        delete[] http_request->url;
-        http_request->url=NULL;
-    }
-//    std::cout<<"erase http_request 2"<<std::endl;
-
-    if(http_request->body!=NULL){
-        delete[] http_request->body;
-        http_request->body=NULL;
-    }
-//    std::cout<<"erase http_request 3"<<std::endl;
-    //header
-
-    for(int i=0;i<http_request->header_lines;i++){
-        delete[] http_request->headers[i].field;
-        http_request->headers[i].field=NULL;
-        delete[] http_request->headers[i].value;
-        http_request->headers[i].value=NULL;
-    }
-    delete http_request;
-    http_request=NULL;
-//    std::cout<<"erase http_request finish"<<std::endl;
-    return ;
-}
-Connection::~Connection() {
-//    std::cout<<"connection xigou"<<std::endl;
-}
+Connection::~Connection() {}
 
 int Connection::getState() const {
     return state;
@@ -213,12 +163,4 @@ const std::string &Connection::getMsg() const {
 
 void Connection::setMsg(const std::string &msg) {
     Connection::msg = msg;
-}
-
-http_request_t *Connection::getHttp_request() const {
-    return http_request;
-}
-
-void Connection::setHttp_request(http_request_t *http_request) {
-    Connection::http_request = http_request;
 }

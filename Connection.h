@@ -34,16 +34,8 @@ public:
     int getState() const;
     void connectionStateMachine();
     void addRequestCount();
-    void enableRead();
     bool isKeepAlive();
     void closeConn();
-
-    http_request_t *getHttp_request() const;
-
-    void setHttp_request(http_request_t *http_request);
-
-    void requestStart();
-    void eraseHttpRequest();
 private:
 
     evutil_socket_t connfd;
@@ -52,9 +44,8 @@ private:
     int is_readable;
     int request_count;
     bufferevent *bev;
-    http_request_t *http_request;
-    http_response response;
-    http_response before_response;
+    HttpParser hp_current;
+    HttpResponse hr_current;
     std::string msg;
 };
 

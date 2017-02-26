@@ -6,6 +6,7 @@
 #include <csignal>
 #include <zconf.h>
 #include <cstring>
+#include "HttpParser.h"
 #include <memory>
 #include "Worker.h"
 #include "ConnectionState.h"
@@ -22,11 +23,10 @@ void Worker::run(int listenfd){
 //    std::cout<<&base<<std::endl;
 //    添加信号事件
     event *signal_SIGINT;
-    if(!(signal_SIGINT =evsignal_new(base, SIGINT, signalSIGINT, NULL))){
+    if((signal_SIGINT =evsignal_new(base, SIGINT, signalSIGINT, NULL))==NULL){
         std::cerr<<" signal_SIGINT error";
         return;
     }
-    evsignal_del(signal_SIGINT);
     if(evsignal_add(signal_SIGINT,NULL)<0){
         std::cerr<<"signal add error";
         return ;
@@ -71,21 +71,22 @@ void Worker::do_accept(evutil_socket_t listenfd, short events, void *user_data) 
             std::cout<<"error pid="<<getpid()<<std::endl;
                 break;
         }
+
         return;
     }
-    printf("pid %d accept confd=%u\n",getpid(),connfd);
+//    printf("\npid %d accept confd=%u\n",getpid(),connfd);
     Worker::conns_num++;
 //    std::cout<<"conns_num= "<<conns_num<<std::endl;
     bufferevent *bev=bufferevent_socket_new(base,connfd,BEV_OPT_CLOSE_ON_FREE);
-    boost::shared_ptr<Connection> conn=boost::make_shared<Connection>(connfd,bev);
-    conns[connfd]=conn;
-//    std::cout<<conns.size()<<std::endl;
-    connectionStateMachine(conn);
+    conns[connfd]=boost::make_shared<Connection>(connfd,bev);
+    if(conns[connfd]== nullptr){
+        conns[connfd]->setState(CON_STATE_CLOSE);
+    }
+    connectionStateMachine(conns[connfd]);
     return;
 }
-#define MAXLINE 4096
+const int MAXLINE=4096;
 void Worker::doRead(bufferevent *bev, void *user_data) {
-
     evutil_socket_t connfd = bufferevent_getfd(bev);
     conns[connfd]->setState(CON_STATE_READ);
     connectionStateMachine(conns[connfd]);
@@ -100,16 +101,17 @@ void Worker::doWrite(bufferevent *bev, void *user_data) {
 
 }
 void Worker::doError(bufferevent *bev, short events, void *user_data) {
-    evutil_socket_t fd=bufferevent_getfd(bev);
-    printf("fd=%u\n",fd);
+    evutil_socket_t connfd=bufferevent_getfd(bev);
+//    printf("fd=%u\n",connfd);
     if(events & BEV_EVENT_TIMEOUT){
         std::cerr<<"timeout";
     }else if(events &BEV_EVENT_EOF){
-        std::cerr<<"connection close";
+        std::cerr<<"connection close\n";
     }else if(events &BEV_EVENT_ERROR){
         std::cerr<<"some other error";
     }
-    bufferevent_free(bev);
+    conns[connfd]->setState(CON_STATE_CLOSE);
+    connectionStateMachine(conns[connfd]);
 }
 
 void Worker::signalSIGINT(evutil_socket_t sig, short events, void *user_data) {
@@ -120,7 +122,7 @@ void Worker::signalSIGINT(evutil_socket_t sig, short events, void *user_data) {
 }
 
 
-void Worker::connectionStateMachine(boost::shared_ptr<Connection> conn) {
+void Worker::connectionStateMachine(boost::shared_ptr<Connection>& conn) {
     int done=0;
     while (done == 0) {
         size_t ostate = conn->getState();
@@ -131,7 +133,6 @@ void Worker::connectionStateMachine(boost::shared_ptr<Connection> conn) {
                 conns_num++;
                 bufferevent_setcb(conn->getBev(), doRead,doWrite, doError, NULL);
                 bufferevent_enable(conn->getBev(),EV_READ|EV_PERSIST);
-                conn->requestStart();
             }
                 break;
             case CON_STATE_REQUEST_END:    {
@@ -152,6 +153,7 @@ void Worker::connectionStateMachine(boost::shared_ptr<Connection> conn) {
             case CON_STATE_RESPONSE_START:{
                 //do something
                 if(conn->responsePrepare()){
+
                     conn->setState(CON_STATE_WRITE);
                 }else{
                     conn->setState(CON_STATE_ERROR);
@@ -161,7 +163,8 @@ void Worker::connectionStateMachine(boost::shared_ptr<Connection> conn) {
                 break;
             case CON_STATE_RESPONSE_END:    /* transient */{
                 if(conn->isKeepAlive()){
-                    conn->setState(CON_STATE_REQUEST_START);
+//                    conn->setState(CON_STATE_REQUEST_START);
+                    conn->setState(CON_STATE_CLOSE);
                 }else{
                     conn->setState(CON_STATE_CLOSE);
                 }
@@ -178,8 +181,11 @@ void Worker::connectionStateMachine(boost::shared_ptr<Connection> conn) {
 //                std::cout<<"close"<<std::endl;
                 conn->closeConn();
                 evutil_socket_t connfd=bufferevent_getfd(conn->getBev());
-                conns[connfd]=NULL;
-//                conns.erase(connfd);
+//                conns[connfd]=NULL;
+                if(conns[connfd]!= nullptr){
+                    conns.erase(connfd);
+                }
+
             }
 
                 //do something
