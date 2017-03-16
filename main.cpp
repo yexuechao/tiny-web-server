@@ -1,6 +1,8 @@
-#include "Master.h"
+#include "hFiles/Master.h"
 int main() {
     Master master("127.0.0.1",9000,1);
-    master.run();
+    if(!master.run()){
+        exit(1);
+    }
     return 0;
 }

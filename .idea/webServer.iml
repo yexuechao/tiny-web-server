@@ -2,21 +2,21 @@
 <module type="CPP_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/ConnectionState.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/Master.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/http_parser.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/Worker.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/HttpParser.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/HttpParser.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/Master.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/http_parser.c" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/Connection.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/Connection.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/CMakeLists.txt" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/HttpResponse.h" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/HttpResponse.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/Worker.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/main.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/CMakeLists.txt" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hFiles/Worker.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hFiles/Connection.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hFiles/ConnectionState.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hFiles/HttpResponse.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hFiles/Master.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hFiles/HttpParser.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/httpParser/http_parser.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/httpParser/http_parser.c" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cppFiles/HttpParser.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cppFiles/Worker.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cppFiles/Master.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cppFiles/Connection.cpp" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/cppFiles/HttpResponse.cpp" isTestSource="false" />
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module-library">

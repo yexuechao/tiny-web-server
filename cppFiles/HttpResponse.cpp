@@ -7,7 +7,7 @@
 #include <zconf.h>
 #include <wait.h>
 #include <iostream>
-#include "HttpResponse.h"
+#include "../hFiles/HttpResponse.h"
 
 std::map<std::string,std::string> filetype={
         { "txt", "text/plain" },
@@ -34,12 +34,6 @@ static const std::string &contentType(string path) {
     }
     std::string extension=url.substr(found+1);
     return filetype[extension];
-//    const filetype *alltype;
-//    for(alltype=&file_type[0];!alltype->extension.empty();++alltype){
-//        if(alltype->extension==extension){
-//            return alltype->content_type;
-//        }
-//    }
 }
 
 HttpResponse::HttpResponse()
@@ -72,15 +66,11 @@ void HttpResponse::getMethodResponse() {
         hhp_context->query_string=query_string.substr(0,found+1);
         hhp_context->url=query_string.substr(found,std::string::npos);
     }
-    //+index.html if is a dir or /
     if(!addIndex()){
-//        std::cout<<"add index and not found"<<std::endl;
         notFound();
         return ;
     }
-    //cgi or not?
     if(cgi!=1){
-//        std::cout<<"get no cgi"<<std::endl;
         successGetNoCgi();
     }else{
         std::cout<<"get cgi"<<std::endl;
@@ -89,11 +79,8 @@ void HttpResponse::getMethodResponse() {
 }
 
 void HttpResponse::successGetNoCgi() {
-    //find file
-//    std::cout<<hhp_context->url<<std::endl;
     std::ifstream in(hhp_context->url);
     if(!in.is_open()){
-        //not found
         std::cout<<"get no found"<<std::endl;
         notFound();
         return ;
@@ -104,17 +91,15 @@ void HttpResponse::successGetNoCgi() {
 }
 
 bool HttpResponse::addIndex() {
-    //url
-//    std::cout<<"add index"<<std::endl;
     struct stat st;
-    std::string path="/home/yxc/workplace/testWeb";
-    path=path+hhp_context->url;
-//    std::cout<<hhp_context->url<<std::endl;
-    if(path.at(path.length()-1)=='/'){
-        path=path+"index.html";
-        hhp_context->url=path;
+    std::string path=target;
+//    path=path+hhp_context->url;
+    if(hhp_context->url.at(hhp_context->url.length()-1)=='/'){
+        path=path+hhp_context->url+"index.html";
+    }else{
+        path=path+textSource+hhp_context->url;
     }
-
+    hhp_context->url=path;
     if (stat(path.c_str(), &st) == -1) {
         std::cout<<"add index return false"<<std::endl;
         return false;
@@ -126,10 +111,8 @@ bool HttpResponse::addIndex() {
         if ((st.st_mode & S_IXUSR) || (st.st_mode & S_IXGRP) || (st.st_mode & S_IXOTH)){
             cgi=1;
         }
-//        std::cout<<hhp_context->url<<std::endl;
         return true;
     }
-
 }
 
 void HttpResponse::notFound() {
@@ -148,14 +131,12 @@ void HttpResponse::notFound() {
 }
 
 void HttpResponse::successHeader() {
-//    std::cout<<"success header"<<std::endl;
     successLine();
     response.header["Content-Type"]=contentType(hhp_context->url);
     response.header["Connection"]="close";
 }
 
 void HttpResponse::successFile(std::ifstream &in) {
-//    std::cout<<"success file"<<std::endl;
     in>>response.content;
     return ;
 }

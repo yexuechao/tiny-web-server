@@ -22,27 +22,16 @@ public:
     bool parseHttp(std::string buf,int nread);
     bool responsePrepare();
     void writeResponse();
-
-    int getRequest_count() const;
-
-    void setRequest_count(int request_count);
-
     const std::string &getMsg() const;
-
     void setMsg(const std::string &msg);
-
     int getState() const;
     void connectionStateMachine();
-    void addRequestCount();
     bool isKeepAlive();
     void closeConn();
 private:
 
     evutil_socket_t connfd;
     int state;
-    int deal_times;
-    int is_readable;
-    int request_count;
     bufferevent *bev;
     HttpParser hp_current;
     HttpResponse hr_current;

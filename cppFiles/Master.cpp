@@ -6,16 +6,9 @@
 #include <cstring>
 #include <zconf.h>
 #include <wait.h>
-#include "Master.h"
-#include "Worker.h"
+#include "../hFiles/Master.h"
+#include "../hFiles/Worker.h"
 
-//struct MasterBase{
-//    event_base *base;
-//    int fd;
-//    event *signal_SIGINT;
-//    event *signal_SIGTERM;
-//    event *signal_SIGCHLD;
-//};
 Master::Master(const string &ip, const int &port,const int &number_of_child)
         :listen_ip(ip),listen_port(port),number_of_child(number_of_child)
 {}
@@ -45,7 +38,6 @@ bool Master::startListenfd() {
     return true;
 }
 bool Master::run() {
-    std::cout<<"master start"<<std::endl;
     if(!startListenfd()){
         return false;
     }
@@ -73,19 +65,12 @@ bool Master::run() {
     event *signal_SIGINT;
     event *signal_SIGTERM;
     event *signal_SIGCHLD;
-//    MasterBase *mb=new MasterBase;
-//    mb->base=base;
-//    mb->fd=listen_fd;
-//    mb->signal_SIGCHLD;
-//    mb->signal_SIGTERM;
-//    mb->signal_SIGINT;
+
     signal_SIGINT =evsignal_new(base, SIGINT, signalSIGINT, NULL);
     evsignal_add(signal_SIGINT,NULL);
-
     signal_SIGTERM =evsignal_new(base, SIGTERM, signalSIGTERM, signal_SIGTERM);
     evsignal_add(signal_SIGTERM,NULL);
-    int listenfd=listen_fd;
-    signal_SIGCHLD=evsignal_new(base,SIGCHLD,signalSIGCHLD,&listenfd);
+    signal_SIGCHLD=evsignal_new(base,SIGCHLD,signalSIGCHLD,NULL);
     evsignal_add(signal_SIGCHLD,NULL);
 
     event_base_dispatch(base);
@@ -113,22 +98,8 @@ void Master::signalSIGTERM(evutil_socket_t sig, short events, void *user_data) {
 void Master::signalSIGCHLD(evutil_socket_t sig, short events, void *user_data) {
     pid_t pid;
     int stat;
-//    MasterBase *mb=(MasterBase *)user_data;
-    int listen_fd =*(int*)(user_data);
-//    event_base *base=mb->base;
     while ( (pid = waitpid(-1, &stat, WNOHANG)) > 0){
         std::cout<<"child "<<pid<<" terminated"<<std::endl;
-//        pid=fork();
-//        if(pid<0){
-//            std::cerr<<"fork error";
-//            exit(1);
-//        }else if(pid==0){
-//
-//            std::cout<<"new child "<<getpid()<<std::endl;
-//            Worker worker;
-//            worker.run(listen_fd);
-//            return ;
-//        }
     }
     return ;
 }

@@ -8,24 +8,23 @@
 #include <event2/event.h>
 #include <map>
 #include "Connection.h"
-#include <boost/make_shared.hpp>
+#include <memory>
+const int MAXLINE=4096;
 class Worker {
 public:
-    //信号处理
-    //sigint
+
     Worker();
     void run(int listenfd);
     ~Worker();
 private:
     static void signalSIGINT(evutil_socket_t sig, short events, void *user_data);
-    static void do_accept(evutil_socket_t listenfd,short events,void *arg);
+    static void doAccept(evutil_socket_t listenfd,short events,void *arg);
     static void doRead(bufferevent *bev,void *user_data);
     static void doError(bufferevent *bev,short events, void *user_data);
     static void doWrite(bufferevent *bev,void *user_data);
-    static void connectionStateMachine(boost::shared_ptr<Connection> &conn);
+    static void connectionStateMachine(std::shared_ptr<Connection> &conn);
     evutil_socket_t listen_fd;
-    static std::map<evutil_socket_t,boost::shared_ptr<Connection> > conns;
-    static int conns_num;
+    static std::map<evutil_socket_t,std::shared_ptr<Connection> > conns;
 };
 
 

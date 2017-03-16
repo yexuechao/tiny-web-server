@@ -9,7 +9,8 @@
 #include "HttpParser.h"
 #include <string>
 #include <map>
-
+const string target="/home/yxc/workplace/webServer/source";
+const string textSource="/textSource";
 struct http_response{
     std::string version;
     int status;
