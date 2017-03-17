@@ -6,7 +6,7 @@
 #include "../hFiles/Connection.h"
 #include "../hFiles/ConnectionState.h"
 #include <event2/buffer.h>
-
+queue<http_request_t> Connection::q_http_request=queue<http_request_t>();
 Connection::Connection(evutil_socket_t fd,bufferevent *bev)
         :connfd(fd),
          bev(bev),
@@ -35,73 +35,64 @@ bool Connection::parseHttp(std::string buf,int nread) {
 }
 
 bool Connection::responsePrepare() {
-    hr_current.setHhp(hp_current);
-
-    if (hp_current.getHht()->method!="GET" && hp_current.getHht()->method!="POST")
-    {
-
-        std::cout<<"501 false"<<std::endl;
-        hr_current.unimplemented();//don't have this method
-    }
-    if(hp_current.getHht()->method=="POST"){
-        std::cout<<"post method"<<std::endl;
-        hr_current.setCgi(1);
-        hr_current.postResponse();
-    }
-    if (hp_current.getHht()->method=="GET") {
-        hr_current.getMethodResponse();
-    }
-
-    if(hr_current.getResponse_error()!=0){
-        return false;
+    while(!q_http_request.empty()){
+        hr_current.setHhp_context(q_http_request.front());
+        q_http_request.pop();
+        if (hr_current.getHhp_context().method!="GET" && hr_current.getHhp_context().method!="POST"){
+            std::cout<<"501 false"<<std::endl;
+            hr_current.unimplemented();
+        }else if(hr_current.getHhp_context().method=="POST"){
+            hr_current.getHhp_context().setCgi(1);
+            hr_current.postResponse();
+        }else if (hr_current.getHhp_context().method=="GET"){
+            hr_current.getMethodResponse();
+        }
+        if(hr_current.getResponse_error()!=0){
+            Connection::q_http_request=queue<http_request_t>();
+            return false;
+        }
+        //入队列
+        out_queue.push(hr_current.getResponse());
+        hr_current.getResponse().clearThis();
     }
     return true;
 }
 
 void Connection::writeResponse() {
     //组织response
-    http_response response=hr_current.getResponse();
-    std::string wr;
-    //version
-    wr.append(response.version+" ");
-    //status
-    char num[10];
-    sprintf(num,"%d \0",response.status);
-    wr.append(num);
-    //description
-    wr.append(response.status_description+"\r\n");
-    //header
-    std::map<std::string,std::string>::iterator itr=response.header.begin();
-    for(;itr!=response.header.end();itr++){
-        wr.append(itr->first+": ");
-        wr.append(itr->second+"\r\n");
+    while(!out_queue.empty()){
+        http_response response=out_queue.front();
+        out_queue.pop();
+        std::string wr;
+        //version
+        wr.append(response.version+" ");
+        //status
+        char num[10];
+        sprintf(num,"%d \0",response.status);
+        wr.append(num);
+        //description
+        wr.append(response.status_description+"\r\n");
+        //header
+        std::map<std::string,std::string>::iterator itr=response.header.begin();
+        for(;itr!=response.header.end();itr++){
+            wr.append(itr->first+": ");
+            wr.append(itr->second+"\r\n");
+        }
+        wr.append("\r\n");
+        wr.append(response.content+"\r\n\r\n");
+        bufferevent_write(bev,wr.c_str(),wr.length());
     }
-    wr.append("\r\n");
-    wr.append(response.content+"\r\n\r\n");
-    bufferevent_write(bev,wr.c_str(),wr.length());
+
     hp_current.erasehht();
 }
 
 
-bool Connection::isKeepAlive() {
-    http_request_t *hht=hp_current.getHht();
-    int i=0;
-    for(i=0;i<hht->header_lines;i++){
-    }
-
-    if(i==hht->header_lines){
-        return false;
-    }else{
-        return true;
-    }
+bool Connection::isKeepAlive    () {
+    return false;
 }
-
-
-
-
 void Connection::closeConn() {
     evbuffer *output = bufferevent_get_output(bev);
-    if (evbuffer_get_length(output) == 0) {
+    if (evbuffer_get_length(output) == 0 && out_queue.empty()) {
         bufferevent_free(bev);
     }
     return ;
@@ -119,4 +110,8 @@ const std::string &Connection::getMsg() const {
 
 void Connection::setMsg(const std::string &msg) {
     Connection::msg = msg;
+}
+
+void Connection::inQueue(const http_request_t &hrt) {
+    q_http_request.push(hrt);
 }

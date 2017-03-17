@@ -11,7 +11,9 @@
 #include "HttpParser.h"
 #include "HttpResponse.h"
 #include <string>
+#include <queue>
 
+using namespace std;
 class Connection {
 public:
     Connection(evutil_socket_t fd,bufferevent *bev);
@@ -25,17 +27,21 @@ public:
     const std::string &getMsg() const;
     void setMsg(const std::string &msg);
     int getState() const;
-    void connectionStateMachine();
     bool isKeepAlive();
     void closeConn();
+    static void inQueue(const http_request_t & hrt);
 private:
-
     evutil_socket_t connfd;
     int state;
     bufferevent *bev;
     HttpParser hp_current;
     HttpResponse hr_current;
     std::string msg;
+    static queue<http_request_t> q_http_request;
+    queue<http_response> out_queue;
+private:
+    Connection(const Connection &){}
+    Connection &operator =(const Connection &){}
 };
 
 

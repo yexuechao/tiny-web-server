@@ -11,61 +11,59 @@
 #include <map>
 const string target="/home/yxc/workplace/webServer/source";
 const string textSource="/textSource";
+const int MAXSIZE=4096;
 struct http_response{
     std::string version;
     int status;
     std::string status_description;
     std::map<std::string,std::string> header;
     std::string content;
+    void clearThis(){
+        version.clear();
+        status=0;
+        status_description.clear();
+        header.clear();
+        content.clear();
+    }
+
 };
 
 class HttpResponse {
 public:
     HttpResponse();
-    void unimplemented();
     ~HttpResponse();
-    void postResponse();
+    //get
     void getMethodResponse();
+    void successGetNoCgi();
+    //post
+    void postResponse();
+    void getCgiResponse();
+    //error
+    void unimplemented();
     void notFound();
     void badRequest();
+    void cannotExecute();
+    //success
     void successHeader();
     void successFile(std::ifstream &in);
-    bool addIndex();
-    int getCgi() const;
-    void setCgi(int cgi);
-    void successGetNoCgi();
-    void cannotExecute();
-
-    int getResponse_error() const;
-
-    void setResponse_error(int response_error);
-
     void successLine();
-    void getCgiResponse();
-    //HTTP/1.1 200 OK
-    //Date:
-    //Server:
-    //Last-Modified:
-    //ETag:
-    //Accept-Ranges:
-    //Content-Length:
-    //Connection:
-    //Content-Type:
-    void setHhp(const HttpParser &hhp);
-    //内容
+    //other
+    bool addIndex();
+    int getResponse_error() const;
+    void setResponse_error(int response_error);
+    http_response &getResponse();
+    http_request_t getHhp_context() const;
+    void setHhp_context(http_request_t hhp_context);
 private:
-    int cgi;
-    HttpParser hhp;
     http_response response;
-public:
-    const http_response &getResponse() const;
-
+    const static std::map<std::string,std::string> filetype;
+    int response_error;
+    http_request_t hhp_context;
 private:
-    static std::map<std::string,std::string> filetype;
     void Close(int fd);
     void Dup2(int fd1,int fd2);
-    int response_error;
-    http_request_t *hhp_context;
+    HttpResponse(const HttpResponse&){}
+    HttpResponse &operator =(const HttpResponse&){}
 };
 
 

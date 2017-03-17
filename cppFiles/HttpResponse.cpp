@@ -37,12 +37,9 @@ static const std::string &contentType(string path) {
 }
 
 HttpResponse::HttpResponse()
-        :cgi(0),response_error(0)
-{}
+        :response_error(0){}
 
-HttpResponse::~HttpResponse() {
-
-}
+HttpResponse::~HttpResponse() {}
 
 void HttpResponse::unimplemented() {
     //501
@@ -59,18 +56,18 @@ void HttpResponse::unimplemented() {
 }
 
 void HttpResponse::getMethodResponse() {
-    std::string query_string(hhp_context->url);
+    std::string query_string(hhp_context.url);
     size_t found=query_string.find_first_of('?',0);
     if(found!=std::string::npos){
-        //cgi
-        hhp_context->query_string=query_string.substr(0,found+1);
-        hhp_context->url=query_string.substr(found,std::string::npos);
+        hhp_context.url=query_string.substr(0,found);
+        hhp_context.query_string=query_string.substr(found+1,std::string::npos);
+        hhp_context.cgi=1;
     }
     if(!addIndex()){
         notFound();
         return ;
     }
-    if(cgi!=1){
+    if(hhp_context.cgi!=1){
         successGetNoCgi();
     }else{
         std::cout<<"get cgi"<<std::endl;
@@ -79,7 +76,7 @@ void HttpResponse::getMethodResponse() {
 }
 
 void HttpResponse::successGetNoCgi() {
-    std::ifstream in(hhp_context->url);
+    std::ifstream in(hhp_context.url);
     if(!in.is_open()){
         std::cout<<"get no found"<<std::endl;
         notFound();
@@ -93,24 +90,28 @@ void HttpResponse::successGetNoCgi() {
 bool HttpResponse::addIndex() {
     struct stat st;
     std::string path=target;
-//    path=path+hhp_context->url;
-    if(hhp_context->url.at(hhp_context->url.length()-1)=='/'){
-        path=path+hhp_context->url+"index.html";
+    if(hhp_context.cgi!=1){
+        if(hhp_context.url.at(hhp_context.url.length()-1)=='/'){
+            path=path+hhp_context.url+"index.html";
+        }else{
+            path=path+textSource+hhp_context.url;
+        }
+        hhp_context.url=path;
     }else{
-        path=path+textSource+hhp_context->url;
+        path=path+hhp_context.url;
+        hhp_context.url=path;
     }
-    hhp_context->url=path;
     if (stat(path.c_str(), &st) == -1) {
         std::cout<<"add index return false"<<std::endl;
         return false;
     } else {
         if ((st.st_mode & S_IFMT) == S_IFDIR){
             path=path+"/index.html";
-            hhp_context->url=path;
+            hhp_context.url=path;
         }
-        if ((st.st_mode & S_IXUSR) || (st.st_mode & S_IXGRP) || (st.st_mode & S_IXOTH)){
-            cgi=1;
-        }
+//        if ((st.st_mode & S_IXUSR) || (st.st_mode & S_IXGRP) || (st.st_mode & S_IXOTH)){
+//            hhp_context->cgi=1;
+//        }
         return true;
     }
 }
@@ -118,7 +119,7 @@ bool HttpResponse::addIndex() {
 void HttpResponse::notFound() {
     //404
     response.status=404;
-    response.version=hhp_context->version;
+    response.version=hhp_context.version;
     response.status_description="NOT FOUND";
     response.header["Content-Type"]="text/html";
     response.content=
@@ -132,7 +133,7 @@ void HttpResponse::notFound() {
 
 void HttpResponse::successHeader() {
     successLine();
-    response.header["Content-Type"]=contentType(hhp_context->url);
+    response.header["Content-Type"]=contentType(hhp_context.url);
     response.header["Connection"]="close";
 }
 
@@ -142,15 +143,13 @@ void HttpResponse::successFile(std::ifstream &in) {
 }
 
 void HttpResponse::postResponse() {
-    //bad request
     if(!addIndex()){
         std::cout<<"add index and not found"<<std::endl;
         notFound();
         return ;
     }
-    map<string,string>::iterator itr=hhp_context->headers.find("Content-Length");
-
-    if(itr==hhp_context->headers.end()){
+    map<string,string>::iterator itr=hhp_context.headers.find("Content-Length");
+    if(itr==hhp_context.headers.end()){
         //bad request
         badRequest();
     }
@@ -179,17 +178,17 @@ void HttpResponse::postResponse() {
         std::string length="CONTENT-LENGTH=";
         length=length+itr->second;
         putenv((char *) length.c_str());
-        execl((hhp_context->url).c_str(), NULL);
+        execl((hhp_context.url).c_str(), NULL);
         return;
     }else{
         Close(cgi_input[0]);
         Close(cgi_output[1]);
-        write(cgi_input[1],hhp_context->body.c_str(),stoi(itr->second));
-        //...read
-        std::string content;
-        while (read(cgi_output[0],(char *)content.c_str(),4096) > 0){
-            response.content.append(content);
-        }
+        write(cgi_input[1],hhp_context.body.c_str(),stoi(itr->second));
+        char content[MAXSIZE+1];
+        ssize_t n=-1;
+        n=read(cgi_output[0],content,MAXSIZE);
+        content[n]='\0';
+        response.content.assign(content);
         Close(cgi_output[0]);
         Close(cgi_input[1]);
         waitpid(pid,NULL, 0);
@@ -198,8 +197,7 @@ void HttpResponse::postResponse() {
 }
 
 void HttpResponse::successLine() {
-//    std::cout<<"success line"<<std::endl;
-    response.version=hhp_context->version;
+    response.version=hhp_context.version;
     response.status=200;
     response.status_description="OK";
     return ;
@@ -207,7 +205,7 @@ void HttpResponse::successLine() {
 
 void HttpResponse::cannotExecute() {
     response.status=500;
-    response.version=hhp_context->version;
+    response.version=hhp_context.version;
     response.status_description="Server error";
     response.header["Content-Type"]="text/html";
     response.content=
@@ -216,7 +214,7 @@ void HttpResponse::cannotExecute() {
 
 void HttpResponse::badRequest() {
     response.status=400;
-    response.version=hhp_context->version;
+    response.version=hhp_context.version;
     response.status_description="BAD REQUEST";
     response.header["Content-Type"]="text/html";
     response.content=
@@ -226,8 +224,13 @@ void HttpResponse::badRequest() {
 }
 
 void HttpResponse::getCgiResponse() {
-    int cgi_pipe[2];
-    if (pipe(cgi_pipe) < 0) {
+    int cgi_output[2];
+    int cgi_input[2];
+    if (pipe(cgi_output) < 0) {
+        cannotExecute();
+        return;
+    }
+    if (pipe(cgi_input) < 0) {
         cannotExecute();
         return;
     }
@@ -237,21 +240,27 @@ void HttpResponse::getCgiResponse() {
         return;
     }
     successLine();
+
     if(pid==0){
-        Close(cgi_pipe[0]);
-        Dup2(cgi_pipe[1],STDOUT_FILENO);
+        close(cgi_output[0]);
+        close(cgi_input[1]);
+        dup2(cgi_output[1], STDOUT_FILENO);
+        dup2(cgi_input[0], STDIN_FILENO);
         std::string query_string="QUERY_STRING=";
-        query_string=query_string+hhp_context->query_string;
+        query_string=query_string+hhp_context.query_string;
         putenv((char *) query_string.c_str());
-        execl(hhp_context->url.c_str(), NULL);
+        execl(hhp_context.url.c_str(), NULL);
         return ;
     }else{
-        Close(cgi_pipe[1]);
-        std::string content;
-        while (read(cgi_pipe[0],(char *)content.c_str(),4096) > 0){
-            response.content.append(content);
-        }
-        Close(cgi_pipe[0]);
+        close(cgi_output[1]);
+        close(cgi_input[0]);
+        char content[MAXSIZE+1];
+        ssize_t n=-1;
+        n=read(cgi_output[0],content,MAXSIZE);
+        content[n]='\0';
+        response.content.assign(content);
+        Close(cgi_output[0]);
+        Close(cgi_input[1]);
         waitpid(pid,NULL, 0);
     }
 }
@@ -270,14 +279,6 @@ void HttpResponse::Dup2(int fd1, int fd2) {
     }
 }
 
-int HttpResponse::getCgi() const {
-    return cgi;
-}
-
-void HttpResponse::setCgi(int cgi) {
-    HttpResponse::cgi = cgi;
-}
-
 int HttpResponse::getResponse_error() const {
     return response_error;
 }
@@ -286,11 +287,16 @@ void HttpResponse::setResponse_error(int response_error) {
     HttpResponse::response_error = response_error;
 }
 
-void HttpResponse::setHhp(const HttpParser &hhp) {
-    HttpResponse::hhp = hhp;
-    HttpResponse::hhp_context=hhp.getHht();
+
+
+http_response &HttpResponse::getResponse(){
+    return response;
 }
 
-const http_response &HttpResponse::getResponse() const {
-    return response;
+http_request_t HttpResponse::getHhp_context() const {
+    return hhp_context;
+}
+
+void HttpResponse::setHhp_context(http_request_t hhp_context) {
+    HttpResponse::hhp_context = hhp_context;
 }

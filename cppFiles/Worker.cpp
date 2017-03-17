@@ -98,11 +98,11 @@ void Worker::doError(bufferevent *bev, short events, void *user_data) {
     evutil_socket_t connfd=bufferevent_getfd(bev);
 //    printf("fd=%u\n",connfd);
     if(events & BEV_EVENT_TIMEOUT){
-        std::cerr<<"timeout";
+        std::cerr<<"timeout\n";
     }else if(events &BEV_EVENT_EOF){
         std::cerr<<"connection close\n";
     }else if(events &BEV_EVENT_ERROR){
-        std::cerr<<"some other error";
+        std::cerr<<"some other error\n";
     }
     conns[connfd]->setState(CON_STATE_CLOSE);
     connectionStateMachine(conns[connfd]);
@@ -122,6 +122,8 @@ void Worker::connectionStateMachine(std::shared_ptr<Connection>& conn) {
         size_t ostate = conn->getState();
         //根据当前状态机的状态进行相应的处理和状态转换。
         switch (conn->getState()) {
+            case CON_STATE_CONNECT:
+                break;
             case CON_STATE_REQUEST_START:{
                 bufferevent_setcb(conn->getBev(), doRead,doWrite, doError, NULL);
                 bufferevent_enable(conn->getBev(),EV_READ|EV_PERSIST);
@@ -132,7 +134,12 @@ void Worker::connectionStateMachine(std::shared_ptr<Connection>& conn) {
                 char buf[MAXLINE+1];
                 int n=-1;
                 n=bufferevent_read(conn->getBev(),buf, MAXLINE);
+//                cout<<n<<endl;
+                if(n==0||n==-1){
+                    conn->setState(CON_STATE_CLOSE);
+                }
                 buf[n]='\0';
+//                cout<<buf;
                 conn->setMsg(buf);
                 conn->setState(CON_STATE_REQUEST_END);
             }
@@ -157,9 +164,9 @@ void Worker::connectionStateMachine(std::shared_ptr<Connection>& conn) {
 
                     conn->setState(CON_STATE_WRITE);
                 }else{
+
                     conn->setState(CON_STATE_ERROR);
                 }
-
             }
                 break;
             case CON_STATE_WRITE: {
@@ -167,16 +174,13 @@ void Worker::connectionStateMachine(std::shared_ptr<Connection>& conn) {
             }
                 break;
             case CON_STATE_RESPONSE_END:{
-                if(conn->isKeepAlive()){
-                    conn->setState(CON_STATE_CLOSE);
-                }else{
+                if(!conn->isKeepAlive()){
                     conn->setState(CON_STATE_CLOSE);
                 }
             }
                 break;
-            case CON_STATE_CONNECT:
-                break;
             case CON_STATE_CLOSE:{
+//                cout<<"close"<<endl;
                 conn->closeConn();
                 evutil_socket_t connfd=bufferevent_getfd(conn->getBev());
                 if(conns[connfd]!= nullptr){

@@ -52,7 +52,6 @@ bool Master::run() {
                 return false;
             case 0:
                 //子进程
-//                std::cout<<"pid = "<<getpid()<<std::endl;
                 worker.run(listen_fd);
                 return true;
             default:
@@ -99,6 +98,7 @@ void Master::signalSIGCHLD(evutil_socket_t sig, short events, void *user_data) {
     pid_t pid;
     int stat;
     while ( (pid = waitpid(-1, &stat, WNOHANG)) > 0){
+        
         std::cout<<"child "<<pid<<" terminated"<<std::endl;
     }
     return ;

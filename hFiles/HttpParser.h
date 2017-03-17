@@ -45,11 +45,22 @@ struct http_request_t{
     string body;
     string version;
     string query_string;
-    http_request_t(){
-//        cout<<"construct"<<endl;
+    int cgi;
+    http_request_t():header_lines(0),cgi(0){}
+    void clearThis(){
+        url.clear();
+        method.clear();
+        header_lines=0;
+        headers.clear();
+        temp_field.clear();
+        body.clear();
+        version.clear();
+        query_string.clear();
+        cgi=0;
     }
-    ~http_request_t(){
-//        cout<<"free"<<endl;
+
+    void setCgi(int cgi) {
+        http_request_t::cgi = cgi;
     }
 };
 
@@ -93,16 +104,18 @@ public:
  * User can read all request options from "&parser->data.request".
  */
     static int http_message_complete_cb(http_parser* parser);
+
     void erasehht();
     ~HttpParser();
-private:
-public:
     http_request_t *getHht() const;
 
 private:
     http_parser_settings settings;
     http_parser parser;
     http_request_t *hht;
+private:
+    HttpParser(const HttpParser &){}
+    HttpParser &operator =(const HttpParser&){}
 };
 
 
